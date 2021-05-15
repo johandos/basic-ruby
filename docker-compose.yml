@@ -1,0 +1,68 @@
+version: '3'
+services:
+  #Nginx Service
+  webserver:
+    image: nginx:mainline
+    depends_on:
+      - app
+      - db
+    command: [ nginx-debug, '-g', 'daemon off;' ]
+    container_name: webserver-ruby
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./docker/nginx/ssl:/ssl/
+      - ./:/var/www
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      vpcbr:
+        ipv4_address: 12.5.0.4
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app-ruby
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    networks:
+      vpcbr:
+        ipv4_address: 12.5.0.3
+
+  #MySQL Service
+  db:
+    image: mysql:8.0.22
+    container_name: db-ruby
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    tty: true
+    ports:
+      - "3311:3306"
+    environment:
+      MYSQL_DATABASE: db_ruby
+      MYSQL_ROOT_PASSWORD: pass
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - dbdatabo:/var/lib/mysql/
+    networks:
+      vpcbr:
+        ipv4_address: 12.5.0.2
+#Volumes
+volumes:
+  dbdatabo:
+    driver: local
+
+networks:
+  vpcbr:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 12.5.0.0/16
+          gateway: 12.5.0.1
